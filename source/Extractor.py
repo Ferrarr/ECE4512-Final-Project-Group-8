@@ -3,7 +3,6 @@ import cv2 as cv
 
 model = YOLO("./model/license-plate-finetune-v1n.pt")
 
-
 def extract(image_path):
     results = model.predict(image_path)
 

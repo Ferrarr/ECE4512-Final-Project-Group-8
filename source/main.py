@@ -1,22 +1,22 @@
 from Extractor import extract
-
-# only import classify since that's the only function we need from Classifier in main
 from Classifier import classify
-import Enhance as en
+from Enhance import enhance
 import cv2 as cv
-
+import os
+from datetime import datetime
 
 def main():
     image = "0002a5b67e5f0909_jpg.rf.c8f81ef986e3e99af6f349c200080453.jpg"
     plates, confidences = extract(image)
 
-    cv.imshow("First plate found", plates[0])
-    cv.waitKey(0)
-    cv.imshow("First plate found", plates[1])
-    cv.waitKey(0)
-    cv.destroyAllWindows()
+    for plate in plates:
+        degradations = classify(plate)
 
-    return None
+        enhance(plate, degradations)
 
+        # save image to output/ folder.
+        os.makedirs("output", exist_ok=True)
+        filename = "output/enhanced_image_" + str(datetime.now().strftime("%H-%M-%S-%f")) + ".jpg"
+        cv.imwrite(filename, plate)
 
 main()
