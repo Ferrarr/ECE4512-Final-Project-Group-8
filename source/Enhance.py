@@ -31,3 +31,6 @@ def unglare(image):
 
 def denoise(image):
     return 1
+
+def enhance(image, degradations):
+    return 1
