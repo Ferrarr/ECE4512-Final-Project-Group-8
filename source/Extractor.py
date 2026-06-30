@@ -1,5 +1,4 @@
 from ultralytics import YOLO
-import cv2 as cv
 
 model = YOLO("./model/license-plate-finetune-v1n.pt")
 

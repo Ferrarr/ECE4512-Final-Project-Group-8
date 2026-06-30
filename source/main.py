@@ -12,11 +12,11 @@ def main():
     for plate in plates:
         degradations = classify(plate)
 
-        enhance(plate, degradations)
+        enhanced_plate = enhance(plate, degradations)
 
         # save image to output/ folder.
         os.makedirs("output", exist_ok=True)
         filename = "output/enhanced_image_" + str(datetime.now().strftime("%H-%M-%S-%f")) + ".jpg"
-        cv.imwrite(filename, plate)
+        cv.imwrite(filename, enhanced_plate)
 
 main()
