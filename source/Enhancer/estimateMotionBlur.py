@@ -1,0 +1,152 @@
+import numpy as np 
+import cv2 as cv 
+import matplotlib.pyplot as plt 
+
+def blurAngleCepstrum(image): 
+    rows, cols = image.shape[:2]
+    hanning = np.outer(np.hanning(rows), np.hanning(cols))
+    img_w = image * hanning 
+
+    Fourier = np.fft.fft2(img_w)
+    Fshifted = np.fft.fftshift(Fourier)
+    magni = np.abs(Fshifted)
+    magni[magni == 0] = 1e-12
+    logMag = np.log(magni)
+    cepstrum = np.fft.ifft2(logMag).real
+    cepstrumShift = np.fft.fftshift(cepstrum)
+
+    cy, cx = np.array(cepstrumShift.shape) // 2
+    y, x = np.ogrid[:rows, :cols]
+    radius = 4
+    mask = ((x-cx)**2 + (y-cy)**2) > radius**2
+    cepMasked = cepstrumShift * mask
+    peakIdx = np.unravel_index(np.argmax(cepMasked), cepstrumShift.shape)
+    py, px = peakIdx
+    dx = px - cx
+    dy = py - cy
+    angle_rad = np.arctan2(dy,dx)
+    blur_angle = np.rad2deg(angle_rad) % 180
+    correctedAngle = (180 - blur_angle) % 180 
+    return correctedAngle 
+
+
+def motionBlurPSF(kernelSize, angle):
+    kernelSize = int(kernelSize)
+    psf = np.zeros((kernelSize, kernelSize), dtype=np.float32)
+    center = kernelSize // 2
+    psf[center, :] = 1 
+    M = cv.getRotationMatrix2D((center, center), angle, 1.0)
+    psf = cv.warpAffine(psf, M, (kernelSize, kernelSize))
+    return psf / np.sum(psf)
+
+def tenengrad(image): 
+    gx = cv.Sobel(image, cv.CV_64F, 1, 0, ksize=3)
+    gy = cv.Sobel(image, cv.CV_64F, 0, 1, ksize=3)
+    return np.mean(gx**2 + gy**2)
+
+def edgeTaper(image, psf, taperSize=None ): 
+    # reduce Ringing (Softening the image's Edge)
+    image = image.astype(np.float32) 
+    height, width = image.shape[:2]
+    ph, pw = psf.shape 
+    if taperSize is None: 
+        taperSize = max(ph,pw) * 2
+    
+    padded = cv.copyMakeBorder(
+        image, taperSize, taperSize, taperSize, taperSize,
+        borderType=cv.BORDER_REFLECT
+    )
+    sigma = taperSize / 3.0 
+    blurredVer = cv.GaussianBlur(padded, (0,0), sigmaX=sigma)
+    mask = np.zeros_like(padded)
+    mask[taperSize:-taperSize, taperSize:-taperSize] = 1
+    mask = cv.GaussianBlur(mask, (0,0), sigmaX=sigma)
+    tapered = padded * mask + blurredVer * (1 - mask)
+    return tapered, taperSize
+
+
+def wienerDeconvolution(image, psf, K=0.01): 
+    height, width = image.shape[:2]
+    ph, pw = psf.shape
+    psfPadded = np.zeros_like(image, dtype=np.float32)
+    cy, cx = height // 2, width // 2
+    starty = cy - (ph // 2)
+    startx = cx - (pw // 2) 
+    psfPadded[starty:starty+ph, startx:startx+pw] = psf 
+    psfShifted = np.fft.ifftshift(psfPadded)
+    H = np.fft.fft2(psfShifted)
+    G = np.fft.fft2(image)
+    HConj = np.conj(H)
+    HAbs2 = np.abs(H) ** 2
+    F_hat = (HConj / (HAbs2 + K)) * G 
+    restored = np.fft.ifft2(F_hat).real 
+    restored = np.clip(restored, 0, 255).astype(np.uint8)
+    return restored 
+
+def restoreWithTapering(image, psf, K=0.01): 
+    tapered_img, taperSize = edgeTaper(image, psf)
+    restoredPadded = wienerDeconvolution(tapered_img, psf, K=K)
+    height, width = image.shape[:2]
+    restoredCropped = restoredPadded[
+        taperSize:taperSize + height, 
+        taperSize:taperSize + width
+    ]
+    restoredFinal = cv.normalize(restoredCropped, None, 0, 255, cv.NORM_MINMAX)
+    restoredFinal = restoredFinal.astype(np.uint8)
+    return restoredFinal
+
+def estimateLengthbySearch(image, angle, length_range = range(3,41), K=0.01): 
+    bestLen, bestScore = None, -1 
+    scores = []
+    for L in length_range: 
+        psf = motionBlurPSF(L, angle)
+        restored = restoreWithTapering(image, psf, K=K)
+        score = tenengrad(restored)
+        scores.append(score)
+        if score > bestScore: 
+            bestScore = score 
+            bestLen = L 
+    return bestLen, scores 
+
+def estimateMotionBlur(image):
+    est_angle = blurAngleCepstrum(image)
+    est_length, score = estimateLengthbySearch(image, est_angle)
+    candidate = [-11, -9, -7, -5, -3, 0, 3, 5, 7, 9]
+    fig, axes = plt.subplots(nrows=2, ncols=5, figsize=(20,10))
+    axes = axes.flatten()
+    fig.suptitle(
+        f'RESTORED IMAGE \n(Estimated Angle: {est_angle}° | Base Length: {est_length}px)', 
+        fontsize=20, 
+        fontweight='bold'
+    )
+    for i, cand in enumerate(candidate): 
+        length = max(3, est_length + cand)
+        psf_gt = motionBlurPSF(length, est_angle)
+        restored = restoreWithTapering(image, psf_gt, K=0.01)
+        axes[i].set_title(f'Blur Length: {length}px')
+        axes[i].imshow(restored, cmap = 'gray')
+    for j in range(len(candidate), len(axes)): 
+        axes[j].axis('off')
+    plt.tight_layout
+    plt.show()
+    print('---------Experimentation----------------')
+    while True: 
+        selected = input('Please select the Length (px) with the most information ("exit" to escape)\n>>> ')
+        if (selected == 'exit'): 
+            break 
+        try: 
+            selected = int(selected)
+        except: 
+            print('Input is not valid!')
+            continue
+        selected = max(3, selected)
+        psfSelected = motionBlurPSF(selected, est_angle)
+        selectedRestore = restoreWithTapering(image, psfSelected, K=0.01)
+        plt.suptitle('EXPERIMENTATION')
+        plt.title(f'Selected Output (Length: {selected}px)')
+        plt.axis('off')
+        plt.imshow(selectedRestore, cmap='gray')
+        plt.show()
+    print(f'Estimated Angle: {est_angle} \nEstimate Length: {est_length}')
+    
+
