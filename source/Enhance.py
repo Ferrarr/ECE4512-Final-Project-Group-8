@@ -3,7 +3,8 @@
 # im thinking that this way will make 
 #  the code to be much more neat 
 from Enhancer.estimateMotionBlur import estimateMotionBlur
-from Enhancer.noise import removeNoise
+from Enhancer.noiseRemoval import removeNoise
+
 
 # function to brighten image in case of low light
 def brighten(image):
