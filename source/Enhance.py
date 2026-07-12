@@ -1,4 +1,3 @@
-from MotionBlur import demotionblur<D-9><D-0>
 # function to brighten image in case of low light
 def brighten(image):
     return 1
