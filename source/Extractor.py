@@ -1,6 +1,11 @@
 from ultralytics import YOLO
 
-model = YOLO("./models/license-plate-finetune-v1n.pt")
+try: 
+    model = YOLO("./models/license-plate-finetune-v1n.pt")
+    print('Model Loaded Succesfully')
+except Exception as e: 
+    print(f'Failed to load model: {e}')
+    model = None
 
 def extract(image):
     results = model.predict(image)
@@ -22,3 +27,4 @@ def extract(image):
             confidences.append(float(box.conf[0]))
 
     return plates, confidences
+
