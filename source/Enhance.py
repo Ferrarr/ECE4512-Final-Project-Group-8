@@ -67,20 +67,7 @@ def deblur(image, psf=None, snr=0.01):
     
 
 # this function name sucks, we can change it later
-def motionBlurRestore(image):
-    restoredImage, selectedLength, est_angle = estimateMotionBlur(image)
-    # plt.imshow(restoredImage)
-    # plt.show()
-    plates, confidences = extract(restoredImage)
-    try: 
-        plate = plates[0]
-    except: 
-        print('No Plate detected!')
-        return None 
-    plt.imshow(plate)
-    plt.show()
-    plateNum = read_plate(plate)
-    print(f'Selected Length: {selectedLength} | Estimate Angle: {est_angle}')
+def de_motion_blur(image):
     return 1
 
 
@@ -101,27 +88,7 @@ def unglare(image):
 
 
 def denoise(image):
-    restoredImage, kernelSize, restore = removeNoise(image) 
-    plate ,confidences = extract(restoredImage)
-    try: 
-        plate = plate[0]
-    except: 
-        print('No plate detected!')
-        return None 
-    plt.imshow(plate)
-    plt.show()
-    plateNum = read_plate(plate)
-    print(f'Kernel Size: {kernelSize}x{kernelSize} | Restoration: {restore}')
     return 1
 
 def enhance(image, degradations):
-    match degradations: 
-        case 'motionBlur': 
-            motionBlurRestore(image)
-        case 'noise': 
-            denoise(image)
-        case _: 
-            print(f'Unknown Info: {image}, {degradations}')
-            return None
-
     return 1

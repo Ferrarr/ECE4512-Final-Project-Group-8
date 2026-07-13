@@ -49,8 +49,8 @@ def read_plate(image):
 
     detections = []
 
-    for text, score in zip(texts, scores):
-        print(f"{text} | {score:.3f}")
-        detections.append((text, score))
+    # for text, score in zip(texts, scores):
+    #     print(f"{text} | {score:.3f}")
+    #     detections.append((text, score))
 
     return detections
