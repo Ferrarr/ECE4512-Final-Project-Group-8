@@ -1,3 +1,5 @@
+# MASIH JELEK BANGET, I NEED TO IMPLEMENT MUCH BETTER ALGO 
+
 import matplotlib.pyplot as plt 
 import numpy as np 
 # Salt and pepper Noise
