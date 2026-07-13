@@ -1,9 +1,12 @@
 from Extractor import extract
 from Classifier import classify
 from Enhance import enhance
+import Enhance as en
 import cv2 as cv
 import os
 from datetime import datetime
+from OCR import read_plate
+
 
 # def main():
 #     image = "0002a5b67e5f0909_jpg.rf.c8f81ef986e3e99af6f349c200080453.jpg"
@@ -53,5 +56,6 @@ def main():
 #  e.g "../assets/motionBlurred/1.png"
 # and then use user input (Integer)
 # to select algorithm 
+
 
 main()

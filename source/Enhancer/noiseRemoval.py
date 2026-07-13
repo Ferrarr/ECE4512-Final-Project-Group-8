@@ -49,35 +49,52 @@ def removeNoise(image):
             print('Please Enter a valid input!')
             continue 
 
+    lastRestoredImg = None
+    lastKernelSize = None 
+    restorationProcess = None 
+
     while True: 
-        filterRes= input('Please enter kernelSize (must be odd) \n>>> ')
+        filterRes = input('Please enter kernelSize (must be odd) \nWrite down "OK" if you are okay with current configuration\n(Write "exit" to terminate)\n>>> ')
+        if filterRes == 'OK': 
+            if lastRestoredImg is None: 
+                print('You must configure ur setting atleast once')
+                continue 
+            return lastRestoredImg, lastKernelSize, restorationProcess
+        if filterRes == 'exit' : 
+            print("Session terminated")
+            break
         try: 
             filterRes = int(filterRes)
-            if (filterRes < 3): 
-                print('The Kernel Size should be at least 3!')
-                continue 
-            if (filterRes % 2 == 0): 
-                print('The kernel size is odd, Auto Adjusting implemented.')
-                filterRes = filterRes - 1
-            break 
-        except: 
-            print('Please enter a valid input (Integer)!')
+        except ValueError: 
+            print('Please enter a valid input (Integer) or "OK"!')
             continue 
-    restorationProcess = None 
-    match noiseType: 
-        case 1: 
-            restoredImage = medianFilter(image, filterRes)
-            restorationProcess = 'Median Filter'
-        case 2: 
-            restoredImage = meanFilter(image, filterRes)
-            restorationProcess = 'Mean Filter'
-        case _: 
-            print('Input invalid!')
-            return None
-    plt.suptitle("Restored Image")
-    plt.title(f'{restorationProcess} | Kernel Size: {filterRes}')
-    plt.axis('off')
-    plt.imshow(restoredImage)
-    plt.show()
+        if filterRes < 3: 
+            print('The Kernel Size should be at least 3!')
+            continue 
+            
+        if filterRes % 2 == 0: 
+            print('The kernel size is EVEN, Auto Adjusting implemented.') 
+            filterRes = filterRes - 1
+            
+        
+        match noiseType: 
+            case 1: 
+                restoredImage = medianFilter(image, filterRes)
+                restorationProcess = 'Median Filter'
+            case 2: 
+                restoredImage = meanFilter(image, filterRes)
+                restorationProcess = 'Mean Filter'
+            case _: 
+                print('Input invalid!')
+                return None
+        lastRestoredImg = restoredImage
+        lastKernelSize = filterRes
+        plt.figure(figsize=(6, 6)) 
+        plt.suptitle("Restored Image")
+        plt.title(f'{restorationProcess} | Kernel Size: {filterRes}')
+        plt.axis('off')
+        plt.imshow(restoredImage, cmap='gray') 
+        plt.show()
+    
     
     

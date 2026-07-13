@@ -130,16 +130,25 @@ def estimateMotionBlur(image):
     plt.tight_layout
     plt.show()
     print('---------Experimentation----------------')
+    lastValidLength = None 
+    selectedRestore = None 
+
     while True: 
-        selected = input('Please select the Length (px) with the most information ("exit" to escape)\n>>> ')
-        if (selected == 'exit'): 
+        userInput  = input('Please select the Length (px) with the most information \n("OK" to select configuration "exit" to escape)\n>>> ')
+        if (userInput== 'exit'): 
             break 
+        if(userInput== 'OK'): 
+            if selectedRestore is None: 
+                print('You must chose the Length at least once')
+                continue 
+            return selectedRestore, lastValidLength, est_angle
         try: 
-            selected = int(selected)
+            selected = int(userInput)
         except: 
             print('Input is not valid!')
             continue
         selected = max(3, selected)
+        lastValidLength = selected
         psfSelected = motionBlurPSF(selected, est_angle)
         selectedRestore = restoreWithTapering(image, psfSelected, K=0.01)
         plt.suptitle('EXPERIMENTATION')
@@ -148,5 +157,6 @@ def estimateMotionBlur(image):
         plt.imshow(selectedRestore, cmap='gray')
         plt.show()
     print(f'Estimated Angle: {est_angle} \nEstimate Length: {est_length}')
+
     
 
