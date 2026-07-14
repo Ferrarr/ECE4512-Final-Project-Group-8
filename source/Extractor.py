@@ -11,7 +11,6 @@ def extract(image):
     results = model.predict(image)
 
     plates = []
-    confidences = []
 
     for result in results:
         image = result.orig_img
@@ -24,7 +23,5 @@ def extract(image):
 
             plate = image[y1:y2, x1:x2]
             plates.append(plate)
-            confidences.append(float(box.conf[0]))
 
-    return plates, confidences
-
+    return plates

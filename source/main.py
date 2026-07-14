@@ -1,61 +1,64 @@
-from Extractor import extract
-from Classifier import classify
-from Enhance import enhance
-import Enhance as en
+from pathlib import Path
+
 import cv2 as cv
-import os
-from datetime import datetime
+
+from Classifier import classify
+from Extractor import extract
+from Enhance import enhance
 from OCR import read_plate
 
+# macros
+PROJECT_ROOT = Path(__file__).parent.parent
+INPUT_DIR = PROJECT_ROOT / "assets" / "input_images"
+OUTPUT_DIR = PROJECT_ROOT / "assets" / "output_images"
+IMAGE_EXTENSIONS = {
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".bmp",
+    ".tiff",
+    ".tif",
+    ".webp"
+}
 
-# def main():
-#     image = "0002a5b67e5f0909_jpg.rf.c8f81ef986e3e99af6f349c200080453.jpg"
-#     plates, confidences = extract(image)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-#     for plate in plates:
-#         degradations = classify(plate)
+def get_images(directory):
+    if not directory.exists():
+        return []
 
-#         enhanced_plate = enhance(plate, degradations)
+    return [
+        path
+        for path in directory.iterdir()
+        if path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS
+    ]
 
-#         # save image to output/ folder.
-#         os.makedirs("output", exist_ok=True)
-#         filename = "output/enhanced_image_" + str(datetime.now().strftime("%H-%M-%S-%f")) + ".jpg"
-#         cv.imwrite(filename, enhanced_plate)
+def process_image(image_path):
+    image_degradations = classify(image_path)
 
+    image = cv.imread(str(image_path), cv.IMREAD_GRAYSCALE)
+    if image is None:
+        print(f"Failed to read {image_path}")
+        return
 
-# For the time being im using this code first 
-#  As we still doesnt have the classify 
-# And apparently in my case "Motion Blur"
-# does not really need to be cropped 
-# using the Extractor 
+    enhanced_image = enhance(image, image_degradations)
 
-def main(): 
-    imagePath = input("Please input the Image Source Path \n>>> ")
-    image = cv.imread(imagePath, cv.IMREAD_GRAYSCALE)
-    if image is None: 
-        print(f'Failed to load ({imagePath})')
-        return None 
-    degradation = input('Please input Degradation Type (Select a Number)\n(1) Motion Blur \n(2) Noise \n>>> ')
-    intDeg = int(degradation)
-    degradationType = None 
-    match intDeg: 
-        case 1: 
-            degradationType = 'motion-blur'
-        case 2: 
-            degradationType = 'noisy'
-        case _: 
-            print('Unknown Degradation Type')
-            return None 
-        
-    recoveredImage = enhance(image, degradationType)
-    
+    plates = extract(enhanced_image)
 
-# Easy terminal UI 
-# Put the directory for the image
-# (Remember, relative to the source)
-#  e.g "../assets/motionBlurred/1.png"
-# and then use user input (Integer)
-# to select algorithm 
+    for plate_id, plate in enumerate(plates):
+        filename = OUTPUT_DIR / (f"{image_path.stem}_plate_{plate_id}.jpg")
+        cv.imwrite(str(filename), plate)
+        read_plate(plate)
 
+def main():
+    inputs = get_images(INPUT_DIR)
 
-main()
+    if not inputs:
+        print("No images found.")
+        return
+
+    for image_path in inputs:
+        process_image(image_path)
+
+if __name__ == "__main__":
+    main()

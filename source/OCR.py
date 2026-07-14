@@ -23,7 +23,7 @@ ocr = PaddleOCR(
 
 def read_plate(image):
     if image is None:
-        print("Input image is None.")
+        print("OCR: Input image is None.")
         return None
 
     # PaddleOCR expects either grayscale or BGR
@@ -34,7 +34,7 @@ def read_plate(image):
         image = cv.cvtColor(image, cv.COLOR_BGRA2BGR)
 
     elif len(image.shape) != 3 or image.shape[2] != 3:
-        print(f"Unexpected image shape: {image.shape}")
+        print(f"OCR: Unexpected image shape:{image.shape}")
         return None
 
     result = ocr.predict(image)
@@ -49,8 +49,8 @@ def read_plate(image):
 
     detections = []
 
-    # for text, score in zip(texts, scores):
-    #     print(f"{text} | {score:.3f}")
-    #     detections.append((text, score))
+    for text, score in zip(texts, scores):
+        print(f"{text} | {score:.3f}")
+        detections.append((text, score))
 
     return detections
