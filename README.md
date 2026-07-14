@@ -21,8 +21,8 @@ $ cd source && python3 main.py
 ```
 
 ## Installation
-- [link to daclip_ViT-B-32.pt]
+- [daclip_ViT-B-32.pt](https://huggingface.co/spaces/fffiloni/DA-CLIP/tree/main/pretrained_daclip_uir)
 
 ## Credits
 This project utilizes the following ...
-- [link to daclip-uir] for image degradation classification
+- [daclip-uir](https://github.com/Algolzw/daclip-uir) for image degradation type recognition

@@ -70,4 +70,4 @@ def classify(image_path):
         reverse=True
     )
 
-    return results
+    return [item[0] for item in results]
