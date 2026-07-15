@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import cv2 as cv
@@ -23,6 +24,12 @@ IMAGE_EXTENSIONS = {
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+def clear_output_directory(directory):
+    if directory.exists():
+        for file in directory.iterdir():
+            if file.is_file():
+                file.unlink()
+
 def get_images(directory):
     if not directory.exists():
         return []
@@ -36,7 +43,7 @@ def get_images(directory):
 def process_image(image_path):
     image_degradations = classify(image_path)
 
-    image = cv.imread(str(image_path), cv.IMREAD_GRAYSCALE)
+    image = cv.imread(str(image_path))
     if image is None:
         print(f"Failed to read {image_path}")
         return
@@ -51,7 +58,18 @@ def process_image(image_path):
         read_plate(plate)
 
 def main():
-    inputs = get_images(INPUT_DIR)
+    clear_output_directory(OUTPUT_DIR)
+
+    mode = "default"
+    if len(sys.argv) > 1:
+        mode = sys.argv[1]
+
+    if mode == "demo":
+        input_dir = PROJECT_ROOT / "assets" / "demo"
+    else:
+        input_dir = INPUT_DIR
+
+    inputs = get_images(input_dir)
 
     if not inputs:
         print("No images found.")

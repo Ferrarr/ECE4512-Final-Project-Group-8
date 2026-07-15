@@ -2,7 +2,7 @@ import torch
 from PIL import Image
 import open_clip
 
-checkpoint = "./models/daclip_ViT-B-32.pt"
+checkpoint = "source/models/daclip_ViT-B-32.pt"
 
 model, preprocess = open_clip.create_model_from_pretrained(
     "daclip_ViT-B-32",
@@ -23,7 +23,6 @@ def classify(image_path):
         "low-light",
         "noisy",
         "rain",
-        "snow",
     ]
 
     text = tokenizer(degradations)
@@ -50,7 +49,7 @@ def classify(image_path):
             100.0 * degra_features @ text_features.T
         ).softmax(dim=-1)
 
-    threshold = 0.60
+    threshold = 0.30
 
     results = []
 

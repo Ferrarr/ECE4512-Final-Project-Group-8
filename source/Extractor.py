@@ -1,7 +1,7 @@
 from ultralytics import YOLO
 
 try: 
-    model = YOLO("./models/license-plate-finetune-v1n.pt")
+    model = YOLO("source/models/license-plate-finetune-v1n.pt")
     print('Model Loaded Succesfully')
 except Exception as e: 
     print(f'Failed to load model: {e}')

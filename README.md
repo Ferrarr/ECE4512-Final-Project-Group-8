@@ -4,21 +4,63 @@ Our project presents an adaptive image restoration pipeline for robust license p
 
 To address these limitations, we created a unified pipeline that combines degradation-aware image restoration with license plate detection and optical character recognition (OCR). <continue this README>
 
-To run the model, clone the repository and create a virtual environment with Python 3.10.0, then install the dependencies in requirements.txt
+---
+
 ## Instructions
 
+#### Prerequisites
+- **Python 3.13.0** – we recommend using [pyenv](https://github.com/pyenv/pyenv) to manage your Python version:
+  ```shell
+  pyenv install 3.13.0
+  pyenv local 3.13.0
+  ```
+- **Git** (to clone the repository)
+
+#### Setup
+
+1. **Clone the repository**
+   ```shell
+   git clone https://github.com/Ferrarr/ECE4512-Final-Project-Group-8
+   cd ECE4512-Final-Project-Group-8
+   ```
+
+2. **Create and activate a virtual environment** (optional but recommended)
+   ```shell
+   python -m venv .venv
+   source .venv/bin/activate   # On Windows: .venv\Scripts\activate
+   ```
+
+3. **Install dependencies**
+   ```shell
+   pip install -r requirements.txt
+   ```
+
+4. **Download the degradation‑classification model**  
+   The pipeline requires the pre‑trained DACLIP model (~1.7 GB).  
+   - Download [`daclip_ViT-B-32.pt`](https://huggingface.co/spaces/fffiloni/DA-CLIP/tree/main/pretrained_daclip_uir)  
+   - Place it inside the `source/models/` folder
+
+5. **Prepare your input images**  
+   - Create the folder `assets/input_images/` (it is not provided by default):
+     ```shell
+     mkdir -p assets/input_images
+     ```
+   - Place all the images you want to process inside this folder.  
+     Supported formats: `.jpg`, `.jpeg`, `.png`, `.bmp`, `.tiff`, `.tif`, `.webp`.
+
+### Run the pipeline
+
+From the project root directory, execute:
 ```shell
-$ cd <folder>
-$ git clone https://github.com/Ferrarr/ECE4512-Final-Project-Group-8
-$ cd ECE4512-Final-Project-Group-8
-$ mkdir .venv && python -m venv .venv
-$ pip install -r requirements.txt
+python source/main.py
 ```
 
-Then cd into source and run main.py
-```shell
-$ cd source && python3 main.py
-```
+### Output
+
+- **OCR results** – recognised plate numbers and their confidence scores are printed directly to the terminal.
+- **Cropped plate images** – each detected plate is saved as a separate `.jpg` file inside `assets/output_images/` with a filename like `<original_name>_plate_<id>.jpg`.
+
+> **Note:** The `assets/output_images/` folder is created automatically if it does not exist, and its contents are cleared before every new run.
 
 ## Installation
 - [daclip_ViT-B-32.pt](https://huggingface.co/spaces/fffiloni/DA-CLIP/tree/main/pretrained_daclip_uir)
