@@ -1,7 +1,11 @@
 import sys
 from pathlib import Path
-
+import matplotlib.pyplot as plt 
 import cv2 as cv
+
+# Comment this after testing 
+# from enhancer.motion_blur import estimateMotionBlur
+# ---------------------------------------------------
 
 from Classifier import classify
 from Extractor import extract
@@ -80,3 +84,20 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# How i implement the code: 
+# def main() : 
+#     imagePath = "assets/demo/motion_blur8.png"
+#     image = cv.imread(imagePath, cv.IMREAD_GRAYSCALE)
+#     try: 
+#         images = extract(image)
+#         image = images[0]
+#     except: 
+#         print(f'License Plate is not initially found.')
+#     plt.imshow(image, cmap='gray')
+#     plt.show()
+#     estimateMotionBlur(image)
+    
+
+
+# main()
