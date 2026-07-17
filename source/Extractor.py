@@ -9,7 +9,6 @@ except Exception as e:
 
 def extract(image):
     results = model.predict(image)
-
     plates = []
 
     for result in results:
@@ -20,6 +19,13 @@ def extract(image):
 
         for box in result.boxes:
             x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+
+            padding = 100
+
+            x1 = max(0, x1 - padding)
+            y1 = max(0, y1 - padding)
+            x2 = min(image.shape[1], x2 + padding)
+            y2 = min(image.shape[0], y2 + padding)
 
             plate = image[y1:y2, x1:x2]
             plates.append(plate)

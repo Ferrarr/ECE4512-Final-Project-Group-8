@@ -4,7 +4,7 @@ import numpy as np
 from enhancer.motion_blur import estimateMotionBlur
 from enhancer.noise_removal import removeNoise
 
-# helper function for brighten()
+
 def gamma_correction(image, gamma=0.5):
     table = np.array(
         [((i / 255.0) ** gamma) * 255 for i in np.arange(256)]
@@ -64,27 +64,108 @@ def derain(image, h=18, sharpen_amt=1.0):
     return sharpened
 
 
+def get_dark_channel(img, patch_size=15):
+    min_channel = np.min(img, axis=2)
+
+    kernel = cv.getStructuringElement(cv.MORPH_RECT, (patch_size, patch_size))
+    dark_channel = cv.erode(min_channel, kernel)
+
+    return dark_channel
+
+
+def get_atmospheric_light(img, dark_channel, top_percent=0.001):
+    h, w = dark_channel.shape
+    num_pixels = h * w
+    num_top = max(int(num_pixels * top_percent), 1)
+
+    dark_flat = dark_channel.reshape(num_pixels)
+    img_flat = img.reshape(num_pixels, 3)
+
+    indices = np.argsort(dark_flat)[-num_top:]
+    brightest = img_flat[indices]
+    A = brightest[np.argmax(brightest.sum(axis=1))]
+
+    return A.astype(np.float64)
+
+
+def get_transmission(img, A, omega=0.95, patch_size=15):
+    norm_img = img.astype(np.float64) / A
+
+    dark_channel = get_dark_channel(norm_img, patch_size)
+    transmission = 1 - omega * dark_channel
+
+    return transmission
+
+
+def guided_filter(guide, src, radius=40, eps=1e-3):
+    guide = guide.astype(np.float64) / 255.0
+    src = src.astype(np.float64)
+
+    mean_guide = cv.boxFilter(guide, cv.CV_64F, (radius, radius))
+    mean_src = cv.boxFilter(src, cv.CV_64F, (radius, radius))
+    mean_gs = cv.boxFilter(guide * src, cv.CV_64F, (radius, radius))
+    cov_gs = mean_gs - mean_guide * mean_src
+
+    mean_gg = cv.boxFilter(guide * guide, cv.CV_64F, (radius, radius))
+    var_g = mean_gg - mean_guide * mean_guide
+
+    a = cov_gs / (var_g + eps)
+    b = mean_src - a * mean_guide
+
+    mean_a = cv.boxFilter(a, cv.CV_64F, (radius, radius))
+    mean_b = cv.boxFilter(b, cv.CV_64F, (radius, radius))
+
+    return mean_a * guide + mean_b
+
+
+def recover_radiance(img, A, transmission, t0=0.1):
+    t = np.clip(transmission, t0, 1.0)
+    t = t[:, :, np.newaxis]
+
+    J = (img.astype(np.float64) - A) / t + A
+
+    return np.clip(J, 0, 255).astype(np.uint8)
+
+
+def dehaze_dcp(img_rgb, patch_size=15, omega=0.95, t0=0.1, refine=True):
+    dark_channel = get_dark_channel(img_rgb, patch_size)
+    A = get_atmospheric_light(img_rgb, dark_channel)
+    transmission = get_transmission(img_rgb, A, omega, patch_size)
+
+    if refine:
+        gray = cv.cvtColor(img_rgb, cv.COLOR_RGB2GRAY)
+        transmission = guided_filter(gray, transmission)
+
+    return recover_radiance(img_rgb, A, transmission, t0)
+
+
+def gamma_correction_dcp(img_rgb, gamma=1.5):
+    inv_gamma = 1.0 / gamma
+    table = np.array(
+        [((i / 255.0) ** inv_gamma) * 255 for i in np.arange(256)]
+    ).astype(np.uint8)
+
+    return cv.LUT(img_rgb, table)
+
+
 def dehaze(image):
-    lab = cv.cvtColor(image, cv.COLOR_BGR2LAB)
+    img_rgb = cv.cvtColor(image, cv.COLOR_BGR2RGB)
 
-    l, a, b = cv.split(lab)
+    dehazed_rgb = dehaze_dcp(img_rgb, patch_size=15, omega=0.95, t0=0.1)
 
-    clahe = cv.createCLAHE(
-        clipLimit=2.0,
-        tileGridSize=(8, 8)
-    )
+    enhanced_rgb = gamma_correction_dcp(dehazed_rgb, gamma=1.5)
 
-    l_eq = clahe.apply(l)
+    blurred = cv.GaussianBlur(enhanced_rgb, (0, 0), sigmaX=3)
+    sharpened = cv.addWeighted(enhanced_rgb, 1.7, blurred, -0.7, 0)
 
-    lab_eq = cv.merge([l_eq, a, b])
-
-    return cv.cvtColor(lab_eq, cv.COLOR_LAB2BGR)
+    return cv.cvtColor(sharpened, cv.COLOR_RGB2BGR)
 
 
 def denoise(image):
     restoredImage, kernelSize, restore = removeNoise(image)
 
     return restoredImage
+
 
 def enhance(image, degradations):
     if len(degradations) == 0:
@@ -112,10 +193,6 @@ def enhance(image, degradations):
             case "rain":
                 image = derain(image)
                 print("rain detected")
-
-            case "snow":
-                image = desnow(image)
-                print("snow detected")
 
             case _:
                 print(

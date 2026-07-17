@@ -1,8 +1,8 @@
 # ECE4512 Group 8 Final Project
 
-Our project presents an adaptive image restoration pipeline for robust license plate recognition under adverse imaging conditions commonly encountered in traffic surveillance systems. While Automatic License Plate Recognition (ALPR) tools perform well on high-quality images, their performance degrades significantly in real-world scenarios where input images are captured under uncontrolled environmental conditions. 
+Our project presents an adaptive image restoration pipeline for robust license plate recognition under adverse imaging conditions commonly encountered in traffic surveillance systems. While Automatic License Plate Recognition (ALPR) tools perform well on high-quality images, their performance degrades significantly in real-world scenarios where input images are captured under uncontrolled environmental conditions.
 
-To address these limitations, we created a unified pipeline that combines degradation-aware image restoration with license plate detection and optical character recognition (OCR). <continue this README>
+To address these limitations, we created a unified pipeline that combines degradation-aware image restoration with license plate detection and optical character recognition (OCR). 
 
 ---
 
@@ -48,14 +48,37 @@ To address these limitations, we created a unified pipeline that combines degrad
    - Place all the images you want to process inside this folder.  
      Supported formats: `.jpg`, `.jpeg`, `.png`, `.bmp`, `.tiff`, `.tif`, `.webp`.
 
-### Run the pipeline
+#### Run the pipeline
 
 From the project root directory, execute:
+
+**1. Automated pipeline (default)** – uses the CLIP-based classifier to detect degradations:
 ```shell
 python source/main.py
 ```
 
-### Output
+**2. Demo mode** – processes all images inside `assets/demo/` instead of `assets/input_images/`:
+```shell
+python source/main.py demo
+```
+
+**3. Manual degradation override** – skips the classifier and forces specific restoration techniques. Useful for testing individual degradations:
+```shell
+python source/main.py --haze --rain
+```
+
+You can combine any number of the available flags. The pipeline will apply all listed degradations to every image in the input directory.
+
+**Available flags:**
+- `--haze`
+- `--rain`
+- `--motion-blur`
+- `--low-light`
+- `--noisy`
+
+> **Example:** `python source/main.py --haze --motion-blur --low-light`
+
+#### Output
 
 - **OCR results** – recognised plate numbers and their confidence scores are printed directly to the terminal.
 - **Cropped plate images** – each detected plate is saved as a separate `.jpg` file inside `assets/output_images/` with a filename like `<original_name>_plate_<id>.jpg`.

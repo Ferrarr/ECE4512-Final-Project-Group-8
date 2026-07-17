@@ -49,7 +49,7 @@ def classify(image_path):
             100.0 * degra_features @ text_features.T
         ).softmax(dim=-1)
 
-    threshold = 0.30
+    threshold = 0.45
 
     results = []
 

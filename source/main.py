@@ -12,7 +12,6 @@ from Extractor import extract
 from Enhance import enhance
 from OCR import read_plate
 
-# macros
 PROJECT_ROOT = Path(__file__).parent.parent
 INPUT_DIR = PROJECT_ROOT / "assets" / "input_images"
 OUTPUT_DIR = PROJECT_ROOT / "assets" / "output_images"
@@ -44,8 +43,11 @@ def get_images(directory):
         if path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS
     ]
 
-def process_image(image_path):
-    image_degradations = classify(image_path)
+def process_image(image_path, forced_degradations=None):
+    if forced_degradations is None:
+        image_degradations = classify(image_path)
+    else:
+        image_degradations = forced_degradations
 
     image = cv.imread(str(image_path))
     if image is None:
@@ -55,20 +57,33 @@ def process_image(image_path):
     enhanced_image = enhance(image, image_degradations)
 
     plates = extract(enhanced_image)
-
-    for plate_id, plate in enumerate(plates):
-        filename = OUTPUT_DIR / (f"{image_path.stem}_plate_{plate_id}.jpg")
-        cv.imwrite(str(filename), plate)
-        read_plate(plate)
+    if not plates:
+        filename = OUTPUT_DIR / (f"{image_path.stem}_plate_{0}.jpg")
+        cv.imwrite(str(filename), enhanced_image)
+        read_plate(enhanced_image)
+    else:
+        for plate_id, plate in enumerate(plates):
+            filename = OUTPUT_DIR / (f"{image_path.stem}_plate_{plate_id}.jpg")
+            cv.imwrite(str(filename), plate)
+            read_plate(plate)
 
 def main():
     clear_output_directory(OUTPUT_DIR)
 
-    mode = "default"
-    if len(sys.argv) > 1:
-        mode = sys.argv[1]
+    args = sys.argv[1:]
+    is_demo = "demo" in args
+    forced_degradations = None
+    valid_flags = {"--haze", "--rain", "--motion-blur", "--low-light", "--noisy"}
 
-    if mode == "demo":
+    if not is_demo:
+        degs = []
+        for arg in args:
+            if arg in valid_flags:
+                degs.append(arg[2:])
+        if degs:
+            forced_degradations = degs
+
+    if is_demo:
         input_dir = PROJECT_ROOT / "assets" / "demo"
     else:
         input_dir = INPUT_DIR
@@ -80,24 +95,7 @@ def main():
         return
 
     for image_path in inputs:
-        process_image(image_path)
+        process_image(image_path, forced_degradations)
 
 if __name__ == "__main__":
     main()
-
-# How i implement the code: 
-# def main() : 
-#     imagePath = "assets/demo/motion_blur8.png"
-#     image = cv.imread(imagePath, cv.IMREAD_GRAYSCALE)
-#     try: 
-#         images = extract(image)
-#         image = images[0]
-#     except: 
-#         print(f'License Plate is not initially found.')
-#     plt.imshow(image, cmap='gray')
-#     plt.show()
-#     estimateMotionBlur(image)
-    
-
-
-# main()

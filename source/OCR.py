@@ -26,7 +26,6 @@ def read_plate(image):
         print("OCR: Input image is None.")
         return None
 
-    # PaddleOCR expects either grayscale or BGR
     if len(image.shape) == 2:
         image = cv.cvtColor(image, cv.COLOR_GRAY2BGR)
 
@@ -50,7 +49,11 @@ def read_plate(image):
     detections = []
 
     for text, score in zip(texts, scores):
-        print(f"{text} | {score:.3f}")
         detections.append((text, score))
+
+    if detections:
+        best_text, best_score = max(detections, key=lambda x: x[1])
+        print(f"License Plate: {best_text} | {best_score:.3f}")
+        return [(best_text, best_score)]
 
     return detections
