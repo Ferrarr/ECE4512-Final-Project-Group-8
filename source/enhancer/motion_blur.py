@@ -1,6 +1,7 @@
 import numpy as np 
 import cv2 as cv 
 import matplotlib.pyplot as plt 
+from OCR import read_plate_pipeline
 
 def blurAngleCepstrum(image): 
     if len(image.shape) == 3:
@@ -37,7 +38,7 @@ def blurAngleCepstrum(image):
     blur_angle = np.rad2deg(angle_rad) % 180
     correctedAngle = (180 - blur_angle) % 180 
 
-    return correctedAngle 
+    return correctedAngle
 
 
 def motionBlurPSF(kernelSize, angle):
@@ -67,7 +68,7 @@ def edgeTaper(image, psf, taperSize=None ):
     ph, pw = psf.shape 
 
     if taperSize is None: 
-        taperSize = max(ph,pw) * 2
+        taperSize = max(ph,pw) *2
     
     padded = cv.copyMakeBorder(
         image, taperSize, taperSize, taperSize, taperSize,
@@ -191,130 +192,67 @@ def restoreWithTapering(image, psf, K=0.01):
 
 def estimateLengthbySearch(image, angle, length_range = range(3,41), K=0.01): 
 
-    bestLen, bestScore = None, -1 
-    scores = []
+    allResult = []
 
     for L in length_range: 
-
         psf = motionBlurPSF(L, angle)
-
         restored = restoreWithTapering(
             image,
             psf,
             K=K
         )
-
         score = tenengrad(restored)
-
-        scores.append(score)
-
-        if score > bestScore: 
-            bestScore = score 
-            bestLen = L 
-
-    return bestLen, scores 
+        allResult.append({
+            'length' : L, 
+            'score' : score, 
+            'image' : restored
+        })
+    allResult.sort(key=lambda x: x['score'], reverse=True)
+    topFive = allResult[:10]
+        
+    return topFive
 
 
 def estimateMotionBlur(image):
 
     est_angle = blurAngleCepstrum(image)
+    topFive = estimateLengthbySearch(image, est_angle)
+    print(f'Est Angle: {est_angle}')
+    print(f'Length Estimation: {topFive[0]['length']}')
+    print('Loading.......')
+    
+    validOCR = []
+    for rank, res in enumerate(topFive): 
+        restoredImage = res['image']
+        detections = read_plate_pipeline(restoredImage)
+        if not detections: 
+            continue 
+        combinedText = ' '.join(d['text'] for d in detections)
+        averageScore = sum(d['score'] for d in detections) / len(detections)
+        if averageScore >= 0.75 : 
+            validOCR.append({
+                'image' : restoredImage, 
+                'text' : combinedText, 
+                'score' : averageScore, 
+                'length' : res['length'], 
+                'rank_tenegrad' : rank + 1
+            })
+            if averageScore >= 0.95: 
+                print(f'The Optimal Result is found early at rank {rank + 1}')
+                break
 
-    est_length, score = estimateLengthbySearch(
-        image,
-        est_angle
-    )
+    if not validOCR :
+        print('Theres no valid candidate')
+        return None        
+    bestResult = max(validOCR, key=lambda x : x['score'])
 
-    candidate = [-11, -9, -7, -5, -3, 0, 3, 5, 7, 9]
-
-    fig, axes = plt.subplots(
-        nrows=2,
-        ncols=5,
-        figsize=(20,10)
-    )
-
-    axes = axes.flatten()
-
-    fig.suptitle(
-        f'RESTORED IMAGE \n(Estimated Angle: {est_angle}° | Base Length: {est_length}px)', 
-        fontsize=20, 
-        fontweight='bold'
-    )
-
-    for i, cand in enumerate(candidate): 
-
-        length = max(3, est_length + cand)
-
-        psf_gt = motionBlurPSF(
-            length,
-            est_angle
-        )
-
-        restored = restoreWithTapering(
-            image,
-            psf_gt,
-            K=0.01
-        )
-
-        axes[i].set_title(
-            f'Blur Length: {length}px'
-        )
-
-        axes[i].imshow(restored)
-
-    for j in range(len(candidate), len(axes)): 
-        axes[j].axis('off')
-
-    plt.tight_layout
+    bestRestored = bestResult['image']
+    plateResult = bestResult['text']
+    bestScore = bestResult['score']
+    bestLength = bestResult['length']
+    plt.imshow(bestRestored, cmap='gray') 
     plt.show()
+    print(f'Plate: {plateResult} | Length : {bestLength} | Angle: {est_angle}\nConfidence: {bestScore}')
+    return bestRestored
 
-    print('---------Experimentation----------------')
-
-    lastValidLength = None 
-    selectedRestore = None 
-
-    while True: 
-
-        userInput  = input(
-            'Please select the Length (px) with the most information \n("OK" to select configuration "exit" to escape)\n>>> '
-        )
-
-        if userInput == 'exit':
-            break 
-
-        if userInput == 'OK':
-
-            if selectedRestore is None: 
-                print('You must chose the Length at least once')
-                continue
-
-            return selectedRestore, lastValidLength, est_angle
-
-        try: 
-            selected = int(userInput)
-
-        except: 
-            print('Input is not valid!')
-            continue
-
-        selected = max(3, selected)
-
-        lastValidLength = selected
-
-        psfSelected = motionBlurPSF(
-            selected,
-            est_angle
-        )
-
-        selectedRestore = restoreWithTapering(
-            image,
-            psfSelected,
-            K=0.01
-        )
-
-        plt.suptitle('EXPERIMENTATION')
-        plt.title(f'Selected Output (Length: {selected}px)')
-        plt.axis('off')
-        plt.imshow(selectedRestore)
-        plt.show()
-
-    print(f'Estimated Angle: {est_angle} \nEstimate Length: {est_length}')
+   
