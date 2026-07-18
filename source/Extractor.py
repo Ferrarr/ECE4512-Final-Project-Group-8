@@ -20,7 +20,7 @@ def extract(image):
         for box in result.boxes:
             x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
 
-            padding = 100
+            padding = 75
 
             x1 = max(0, x1 - padding)
             y1 = max(0, y1 - padding)

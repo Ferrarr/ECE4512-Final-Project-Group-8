@@ -2,7 +2,7 @@
 
 Our project presents an adaptive image restoration pipeline for robust license plate recognition under adverse imaging conditions commonly encountered in traffic surveillance systems. While Automatic License Plate Recognition (ALPR) tools perform well on high-quality images, their performance degrades significantly in real-world scenarios where input images are captured under uncontrolled environmental conditions.
 
-To address these limitations, we created a unified pipeline that combines degradation-aware image restoration with license plate detection and optical character recognition (OCR). 
+To address these limitations, we created a unified pipeline that combines degradation-aware image restoration with license plate detection and optical character recognition (OCR).
 
 ---
 
@@ -77,6 +77,59 @@ You can combine any number of the available flags. The pipeline will apply all l
 - `--noisy`
 
 > **Example:** `python source/main.py --haze --motion-blur --low-light`
+
+#### Run the evaluation
+
+To benchmark the pipeline's performance across baseline, automated, and manual experiments:
+
+**1. Generate the test set** – creates synthetic degraded images in `assets/test_set/`:
+```shell
+python source/generate_test_set.py
+```
+
+Before running, place clean license plate images in `assets/clean_plates/` with filenames matching the ground truth plate text (e.g., `AED-632.jpg`).
+
+**2. Run the evaluation** – processes all images in `assets/test_set/` and runs three experiments:
+```shell
+python source/evaluate.py
+```
+
+The evaluation runs:
+- **Baseline** – no restoration applied
+- **Automated** – DACLIP classifier + restoration
+- **Manual** – ground-truth degradations from filename + restoration
+
+**Test set naming convention:**
+Images must follow the format: `degradation1_degradation2_<GROUND_TRUTH>.jpg`
+
+Examples:
+- `haze_AED-632.jpg`
+- `motionblur_lowlight_ABC-1234.jpg`
+- `rain_motionblur_haze_KVW-4909.jpg`
+
+Available degradation tokens: `haze`, `rain`, `motionblur`, `lowlight`, `noisy`
+
+**Output:**
+The evaluation prints a summary table showing full-plate and character-level accuracy for each experiment.
+
+```
+======================================================================
+EVALUATION SUMMARY
+======================================================================
+
+BASELINE (50 images):
+  Full-plate accuracy: 0.420 (21/50)
+  Character accuracy: 0.651
+
+AUTOMATED (50 images):
+  Full-plate accuracy: 0.680 (34/50)
+  Character accuracy: 0.824
+
+MANUAL (50 images):
+  Full-plate accuracy: 0.920 (46/50)
+  Character accuracy: 0.967
+======================================================================
+```
 
 #### Output
 

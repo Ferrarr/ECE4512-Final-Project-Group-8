@@ -1,11 +1,6 @@
 import sys
 from pathlib import Path
-import matplotlib.pyplot as plt 
 import cv2 as cv
-
-# Comment this after testing 
-# from enhancer.motion_blur import estimateMotionBlur
-# ---------------------------------------------------
 
 from Classifier import classify
 from Extractor import extract
@@ -58,7 +53,7 @@ def process_image(image_path, forced_degradations=None):
 
     plates = extract(enhanced_image)
     if not plates:
-        filename = OUTPUT_DIR / (f"{image_path.stem}_plate_{0}.jpg")
+        filename = OUTPUT_DIR / (f"{image_path.stem}_plate_0.jpg")
         cv.imwrite(str(filename), enhanced_image)
         read_plate(enhanced_image)
     else:

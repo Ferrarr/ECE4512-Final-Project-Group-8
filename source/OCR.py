@@ -53,7 +53,26 @@ def read_plate(image):
 
     if detections:
         best_text, best_score = max(detections, key=lambda x: x[1])
-        print(f"License Plate: {best_text} | {best_score:.3f}")
+        print(f"License Plate: {best_text} | {best_score:.3f}\n")
         return [(best_text, best_score)]
 
     return detections
+
+def read_plate_pipeline(image): 
+    if image is None: 
+        return [] 
+    if len(image.shape) == 2: 
+        image = cv.cvtColor(image, cv.COLOR_GRAY2BGR)
+    result = ocr.predict(image)
+    if not result or len(result) == 0 or result[0] is None: 
+        return []
+    page = result[0]
+    texts = page.get("rec_texts" , [])
+    scores = page.get('rec_scores', [])
+    detection = []
+    for text, score in zip(texts, scores): 
+        detection.append({
+            'text' : text, 
+            'score' : score
+        })
+    return detection 

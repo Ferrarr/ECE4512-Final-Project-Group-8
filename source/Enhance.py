@@ -2,8 +2,6 @@ import cv2 as cv
 import numpy as np
 
 from enhancer.motion_blur import estimateMotionBlur
-from enhancer.noise_removal import removeNoise
-
 
 def gamma_correction(image, gamma=0.5):
     table = np.array(
@@ -11,7 +9,6 @@ def gamma_correction(image, gamma=0.5):
     ).astype("uint8")
 
     return cv.LUT(image, table)
-
 
 def brighten(image):
     gamma_img = gamma_correction(image, gamma=0.5)
@@ -30,12 +27,13 @@ def brighten(image):
 
     return cv.cvtColor(lab_enh, cv.COLOR_LAB2BGR)
 
-
 def restore_motion_blur(image):
-    restored_image, _, _ = estimateMotionBlur(image)
+    restored_image = estimateMotionBlur(image)
+    
+    if restored_image is None:
+        return image
 
     return restored_image
-
 
 def derain(image, h=18, sharpen_amt=1.0):
     denoised = cv.fastNlMeansDenoisingColored(
@@ -63,7 +61,6 @@ def derain(image, h=18, sharpen_amt=1.0):
 
     return sharpened
 
-
 def get_dark_channel(img, patch_size=15):
     min_channel = np.min(img, axis=2)
 
@@ -71,7 +68,6 @@ def get_dark_channel(img, patch_size=15):
     dark_channel = cv.erode(min_channel, kernel)
 
     return dark_channel
-
 
 def get_atmospheric_light(img, dark_channel, top_percent=0.001):
     h, w = dark_channel.shape
@@ -87,7 +83,6 @@ def get_atmospheric_light(img, dark_channel, top_percent=0.001):
 
     return A.astype(np.float64)
 
-
 def get_transmission(img, A, omega=0.95, patch_size=15):
     norm_img = img.astype(np.float64) / A
 
@@ -95,7 +90,6 @@ def get_transmission(img, A, omega=0.95, patch_size=15):
     transmission = 1 - omega * dark_channel
 
     return transmission
-
 
 def guided_filter(guide, src, radius=40, eps=1e-3):
     guide = guide.astype(np.float64) / 255.0
@@ -117,7 +111,6 @@ def guided_filter(guide, src, radius=40, eps=1e-3):
 
     return mean_a * guide + mean_b
 
-
 def recover_radiance(img, A, transmission, t0=0.1):
     t = np.clip(transmission, t0, 1.0)
     t = t[:, :, np.newaxis]
@@ -125,7 +118,6 @@ def recover_radiance(img, A, transmission, t0=0.1):
     J = (img.astype(np.float64) - A) / t + A
 
     return np.clip(J, 0, 255).astype(np.uint8)
-
 
 def dehaze_dcp(img_rgb, patch_size=15, omega=0.95, t0=0.1, refine=True):
     dark_channel = get_dark_channel(img_rgb, patch_size)
@@ -138,7 +130,6 @@ def dehaze_dcp(img_rgb, patch_size=15, omega=0.95, t0=0.1, refine=True):
 
     return recover_radiance(img_rgb, A, transmission, t0)
 
-
 def gamma_correction_dcp(img_rgb, gamma=1.5):
     inv_gamma = 1.0 / gamma
     table = np.array(
@@ -146,7 +137,6 @@ def gamma_correction_dcp(img_rgb, gamma=1.5):
     ).astype(np.uint8)
 
     return cv.LUT(img_rgb, table)
-
 
 def dehaze(image):
     img_rgb = cv.cvtColor(image, cv.COLOR_BGR2RGB)
@@ -160,39 +150,48 @@ def dehaze(image):
 
     return cv.cvtColor(sharpened, cv.COLOR_RGB2BGR)
 
-
 def denoise(image):
-    restoredImage, kernelSize, restore = removeNoise(image)
-
-    return restoredImage
-
+    gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+    blurred = cv.GaussianBlur(gray, (5, 5), 0)
+    clahe = cv.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+    denoised = clahe.apply(blurred)
+    return denoised
 
 def enhance(image, degradations):
     if len(degradations) == 0:
         return image
 
-    for degradation in degradations:
+    priority = {
+        "low-light": 1,
+        "haze": 2,
+        "rain": 3,
+        "motion-blur": 4,
+        "noisy": 5,
+    }
 
+    sorted_degradations = sorted(degradations, key=lambda d: priority.get(d, 99))
+
+    for degradation in sorted_degradations:
         match degradation:
             case "motion-blur":
-                image = restore_motion_blur(image)
                 print("motion-blur detected")
+                image = restore_motion_blur(image)
 
             case "noisy":
-                image = denoise(image)
                 print("noisy detected")
+                image = denoise(image)
 
             case "low-light":
-                image = brighten(image)
                 print("low-light detected")
+                image = brighten(image)
 
             case "haze":
-                image = dehaze(image)
                 print("haze detected")
+                image = dehaze(image)
 
             case "rain":
-                image = derain(image)
                 print("rain detected")
+                image = derain(image)
 
             case _:
                 print(

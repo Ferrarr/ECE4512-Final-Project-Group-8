@@ -1,6 +1,5 @@
 import numpy as np 
 import cv2 as cv 
-import matplotlib.pyplot as plt 
 from OCR import read_plate_pipeline
 
 def blurAngleCepstrum(image): 
@@ -217,9 +216,6 @@ def estimateMotionBlur(image):
 
     est_angle = blurAngleCepstrum(image)
     topFive = estimateLengthbySearch(image, est_angle)
-    print(f'Est Angle: {est_angle}')
-    print(f'Length Estimation: {topFive[0]['length']}')
-    print('Loading.......')
     
     validOCR = []
     for rank, res in enumerate(topFive): 
@@ -238,11 +234,9 @@ def estimateMotionBlur(image):
                 'rank_tenegrad' : rank + 1
             })
             if averageScore >= 0.95: 
-                print(f'The Optimal Result is found early at rank {rank + 1}')
                 break
 
     if not validOCR :
-        print('Theres no valid candidate')
         return None        
     bestResult = max(validOCR, key=lambda x : x['score'])
 
@@ -250,9 +244,6 @@ def estimateMotionBlur(image):
     plateResult = bestResult['text']
     bestScore = bestResult['score']
     bestLength = bestResult['length']
-    plt.imshow(bestRestored, cmap='gray') 
-    plt.show()
-    print(f'Plate: {plateResult} | Length : {bestLength} | Angle: {est_angle}\nConfidence: {bestScore}')
     return bestRestored
 
    
