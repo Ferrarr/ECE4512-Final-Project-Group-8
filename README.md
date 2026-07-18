@@ -82,14 +82,7 @@ You can combine any number of the available flags. The pipeline will apply all l
 
 To benchmark the pipeline's performance across baseline, automated, and manual experiments:
 
-**1. Generate the test set** – creates synthetic degraded images in `assets/test_set/`:
-```shell
-python source/generate_test_set.py
-```
-
-Before running, place clean license plate images in `assets/clean_plates/` with filenames matching the ground truth plate text (e.g., `AED-632.jpg`).
-
-**2. Run the evaluation** – processes all images in `assets/test_set/` and runs three experiments:
+**1. Run the evaluation** – place desired benchmark images in `assets/test_set/` and run:
 ```shell
 python source/evaluate.py
 ```
