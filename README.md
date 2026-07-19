@@ -66,6 +66,10 @@ python source/main.py demo
 ```shell
 python source/main.py --haze --rain
 ```
+**4. Country-specific OCR corrections** – To improve reading accuracy for plates from specific countries (currently only supports Brazil and China), add the --BR or --CN flag. These will apply corrections for alphanumerics that look similar such as 0 and O, 1 and I, etc.
+```shell
+python source/main.py --CN --haze
+```
 
 You can combine any number of the available flags. The pipeline will apply all listed degradations to every image in the input directory.
 
