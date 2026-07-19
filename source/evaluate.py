@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 import cv2 as cv
+import Levenshtein
 
 from Classifier import classify
 from Extractor import extract
@@ -51,7 +52,7 @@ def parse_filename(filename):
     return ground_truth, degradations
 
 
-def run_pipeline(image_path, mode, forced_degs=None):
+def run_pipeline(image_path, mode, forced_degs=None, country=None):
     image = cv.imread(str(image_path))
     if image is None:
         return None, None
@@ -66,14 +67,13 @@ def run_pipeline(image_path, mode, forced_degs=None):
 
     plates = extract(enhanced_image)
     if not plates:
-        detections = read_plate(enhanced_image)
+        detections = read_plate(enhanced_image, country=country)
     else:
-        detections = read_plate(plates[0])
+        detections = read_plate(plates[0], country=country)
 
     if detections and len(detections) > 0:
         return detections[0][0], enhanced_image
     return None, enhanced_image
-
 
 def compare_plate(pred, gt):
     if not pred or not gt:
@@ -85,25 +85,26 @@ def compare_plate(pred, gt):
     if len(gt_clean) == 0:
         return False, 0.0
 
-    matches = sum(1 for p, g in zip(pred_clean, gt_clean) if p == g)
-    char_acc = matches / len(gt_clean)
-    full_match = (pred_clean == gt_clean)
+    distance = Levenshtein.distance(pred_clean, gt_clean)
+    
+    char_acc = 1 - (distance / max(len(pred_clean), len(gt_clean), 1))
+    
+    full_match = (distance == 0)
 
     return full_match, char_acc
 
-
-def run_experiment(mode, images):
+def run_experiment(mode, images, country=None):
     print(f"\n--- Running {mode.upper()} ---")
 
     for img_path in images:
         gt, degs = parse_filename(img_path)
 
         if mode == "baseline":
-            pred, _ = run_pipeline(img_path, "baseline")
+            pred, _ = run_pipeline(img_path, "baseline", country=country)
         elif mode == "manual":
-            pred, _ = run_pipeline(img_path, "manual", degs)
+            pred, _ = run_pipeline(img_path, "manual", degs, country=country)
         else:
-            pred, _ = run_pipeline(img_path, "automated")
+            pred, _ = run_pipeline(img_path, "automated", country=country)
 
         if gt and pred:
             full_match, char_acc = compare_plate(pred, gt)
@@ -163,6 +164,15 @@ def print_summary():
 
 
 def main():
+    args = sys.argv[1:]
+    country = None
+
+    for arg in args:
+        if arg == "--CN":
+            country = "CN"
+        elif arg == "--BR":
+            country = "BR"
+
     images = get_test_images()
 
     if not images:
@@ -170,15 +180,17 @@ def main():
         return
 
     print(f"Found {len(images)} test images")
+    if country:
+        print(f"Country corrections: {country}")
 
     # Experiment 1: Baseline (no restoration)
-    run_experiment("baseline", images)
+    run_experiment("baseline", images, country)
 
     # Experiment 2: Automated (DACLIP classifier)
-    run_experiment("automated", images)
+    # run_experiment("automated", images, country)
 
     # Experiment 3: Manual (ground truth from filename)
-    run_experiment("manual", images)
+    run_experiment("manual", images, country)
 
     print_summary()
 

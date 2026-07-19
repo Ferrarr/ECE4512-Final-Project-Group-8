@@ -38,7 +38,7 @@ def get_images(directory):
         if path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS
     ]
 
-def process_image(image_path, forced_degradations=None):
+def process_image(image_path, forced_degradations=None, country=None):
     if forced_degradations is None:
         image_degradations = classify(image_path)
     else:
@@ -55,12 +55,12 @@ def process_image(image_path, forced_degradations=None):
     if not plates:
         filename = OUTPUT_DIR / (f"{image_path.stem}_plate_0.jpg")
         cv.imwrite(str(filename), enhanced_image)
-        read_plate(enhanced_image)
+        read_plate(enhanced_image, country=country)
     else:
         for plate_id, plate in enumerate(plates):
             filename = OUTPUT_DIR / (f"{image_path.stem}_plate_{plate_id}.jpg")
             cv.imwrite(str(filename), plate)
-            read_plate(plate)
+            read_plate(plate, country=country)
 
 def main():
     clear_output_directory(OUTPUT_DIR)
@@ -69,6 +69,13 @@ def main():
     is_demo = "demo" in args
     forced_degradations = None
     valid_flags = {"--haze", "--rain", "--motion-blur", "--low-light", "--noisy"}
+    country = None
+
+    for arg in args:
+        if arg == "--CN":
+            country = "CN"
+        elif arg == "--BR":
+            country = "BR"
 
     if not is_demo:
         degs = []
@@ -90,7 +97,7 @@ def main():
         return
 
     for image_path in inputs:
-        process_image(image_path, forced_degradations)
+        process_image(image_path, forced_degradations, country)
 
 if __name__ == "__main__":
     main()

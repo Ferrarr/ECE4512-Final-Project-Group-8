@@ -161,6 +161,7 @@ def enhance(image, degradations):
     if len(degradations) == 0:
         return image
 
+    # subject to change
     priority = {
         "low-light": 1,
         "haze": 2,
