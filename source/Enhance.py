@@ -2,6 +2,7 @@ import cv2 as cv
 import numpy as np
 
 from enhancer.motion_blur import estimateMotionBlur
+from enhancer.rain import remove_rain_fft
 
 def gamma_correction(image, gamma=0.5):
     table = np.array(
@@ -35,31 +36,11 @@ def restore_motion_blur(image):
 
     return restored_image
 
-def derain(image, h=18, sharpen_amt=1.0):
-    denoised = cv.fastNlMeansDenoisingColored(
-        image,
-        None,
-        h=h,
-        hColor=h,
-        templateWindowSize=7,
-        searchWindowSize=21
-    )
+def derain(image):
+    gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+    derained = remove_rain_fft(gray)
 
-    blurred = cv.GaussianBlur(
-        denoised,
-        (0, 0),
-        sigmaX=3
-    )
-
-    sharpened = cv.addWeighted(
-        denoised,
-        1 + sharpen_amt,
-        blurred,
-        -sharpen_amt,
-        0
-    )
-
-    return sharpened
+    return derained
 
 def get_dark_channel(img, patch_size=15):
     min_channel = np.min(img, axis=2)
