@@ -49,24 +49,39 @@ def process_image(image_path, forced_degradations=None, country=None):
         print(f"Failed to read {image_path}")
         return
 
-    enhanced_image = enhance(image, image_degradations)
+    plates = extract(image)
 
-    plates = extract(enhanced_image)
+    # if plates weren't detected, run enhancement on the original image
     if not plates:
-        filename = OUTPUT_DIR / (f"{image_path.stem}_plate_0.jpg")
-        cv.imwrite(str(filename), enhanced_image)
-        read_plate(enhanced_image, country=country)
-    else:
+        enhanced_full = enhance(image, image_degradations)
+        
+        plates = extract(enhanced_full)
+        
+        # if after enhancement the plates are still not detected, save the enhanced image as is.
+        if not plates:
+            filename = OUTPUT_DIR / (f"{image_path.stem}_plate_0.jpg")
+            cv.imwrite(str(filename), enhanced_full)
+            read_plate(enhanced_full, country=country)
+            return
+        
         for plate_id, plate in enumerate(plates):
             filename = OUTPUT_DIR / (f"{image_path.stem}_plate_{plate_id}.jpg")
             cv.imwrite(str(filename), plate)
             read_plate(plate, country=country)
+        
+        return
+
+    for plate_id, plate in enumerate(plates):
+        enhanced_plate = enhance(plate, image_degradations)
+
+        filename = OUTPUT_DIR / (f"{image_path.stem}_plate_{plate_id}.jpg")
+        cv.imwrite(str(filename), enhanced_plate)
+        read_plate(enhanced_plate, country=country)
 
 def main():
     clear_output_directory(OUTPUT_DIR)
 
     args = sys.argv[1:]
-    is_demo = "demo" in args
     forced_degradations = None
     valid_flags = {"--haze", "--rain", "--motion-blur", "--low-light", "--noisy"}
     country = None
@@ -77,23 +92,17 @@ def main():
         elif arg == "--BR":
             country = "BR"
 
-    if not is_demo:
-        degs = []
-        for arg in args:
-            if arg in valid_flags:
-                degs.append(arg[2:])
-        if degs:
-            forced_degradations = degs
+    degs = []
+    for arg in args:
+        if arg in valid_flags:
+            degs.append(arg[2:])
+    if degs:
+        forced_degradations = degs
 
-    if is_demo:
-        input_dir = PROJECT_ROOT / "assets" / "demo"
-    else:
-        input_dir = INPUT_DIR
-
-    inputs = get_images(input_dir)
+    inputs = get_images(INPUT_DIR)
 
     if not inputs:
-        print("No images found.")
+        print("No images found in", INPUT_DIR)
         return
 
     for image_path in inputs:

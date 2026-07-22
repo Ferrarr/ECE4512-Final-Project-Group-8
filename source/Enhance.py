@@ -12,34 +12,50 @@ def gamma_correction(image, gamma=0.5):
     return cv.LUT(image, table)
 
 def brighten(image):
-    gamma_img = gamma_correction(image, gamma=0.5)
+    if len(image.shape) == 2:
+        gamma_img = gamma_correction(image, gamma=0.5)
+        clahe = cv.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        return clahe.apply(gamma_img)
+    else:
+        gamma_img = gamma_correction(image, gamma=0.5)
 
-    lab = cv.cvtColor(gamma_img, cv.COLOR_BGR2LAB)
-    l, a, b = cv.split(lab)
+        lab = cv.cvtColor(gamma_img, cv.COLOR_BGR2LAB)
+        l, a, b = cv.split(lab)
 
-    clahe = cv.createCLAHE(
-        clipLimit=2.0,
-        tileGridSize=(8, 8)
-    )
+        clahe = cv.createCLAHE(
+            clipLimit=2.0,
+            tileGridSize=(8, 8)
+        )
 
-    l_enh = clahe.apply(l)
+        l_enh = clahe.apply(l)
 
-    lab_enh = cv.merge((l_enh, a, b))
+        lab_enh = cv.merge((l_enh, a, b))
 
-    return cv.cvtColor(lab_enh, cv.COLOR_LAB2BGR)
+        return cv.cvtColor(lab_enh, cv.COLOR_LAB2BGR)
 
 def restore_motion_blur(image):
-    restored_image = estimateMotionBlur(image)
-    
-    if restored_image is None:
-        return image
-
-    return restored_image
+    if len(image.shape) == 2:
+        color = cv.cvtColor(image, cv.COLOR_GRAY2BGR)
+        restored = estimateMotionBlur(color)
+        if restored is None:
+            return image
+        return cv.cvtColor(restored, cv.COLOR_BGR2GRAY)
+    else:
+        restored_image = estimateMotionBlur(image)
+        if restored_image is None:
+            return image
+        return restored_image
 
 def derain(image):
-    gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+    if len(image.shape) == 2:
+        gray = image
+    elif len(image.shape) == 3 and image.shape[2] == 3:
+        gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+    elif len(image.shape) == 3 and image.shape[2] == 4:
+        gray = cv.cvtColor(image, cv.COLOR_BGRA2GRAY)
+    else:
+        raise ValueError("Unsupported image format")
     derained = remove_rain_fft(gray)
-
     return derained
 
 def get_dark_channel(img, patch_size=15):
@@ -120,6 +136,8 @@ def gamma_correction_dcp(img_rgb, gamma=1.5):
     return cv.LUT(img_rgb, table)
 
 def dehaze(image):
+    if len(image.shape) == 2:
+        return image
     img_rgb = cv.cvtColor(image, cv.COLOR_BGR2RGB)
 
     dehazed_rgb = dehaze_dcp(img_rgb, patch_size=15, omega=0.95, t0=0.1)
@@ -132,7 +150,15 @@ def dehaze(image):
     return cv.cvtColor(sharpened, cv.COLOR_RGB2BGR)
 
 def denoise(image):
-    gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+    if len(image.shape) == 2:
+        gray = image
+    elif len(image.shape) == 3 and image.shape[2] == 3:
+        gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+    elif len(image.shape) == 3 and image.shape[2] == 4:
+        gray = cv.cvtColor(image, cv.COLOR_BGRA2GRAY)
+    else:
+        raise ValueError("Unsupported image format")
+
     blurred = cv.GaussianBlur(gray, (5, 5), 0)
     clahe = cv.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
     denoised = clahe.apply(blurred)
@@ -142,13 +168,12 @@ def enhance(image, degradations):
     if len(degradations) == 0:
         return image
 
-    # subject to change
     priority = {
         "low-light": 1,
-        "haze": 2,
-        "rain": 3,
-        "motion-blur": 4,
-        "noisy": 5,
+        "noisy": 2,
+        "haze": 3,
+        "rain": 4,
+        "motion-blur": 5,
     }
 
     sorted_degradations = sorted(degradations, key=lambda d: priority.get(d, 99))
@@ -156,23 +181,18 @@ def enhance(image, degradations):
     for degradation in sorted_degradations:
         match degradation:
             case "motion-blur":
-                print("motion-blur detected")
                 image = restore_motion_blur(image)
 
             case "noisy":
-                print("noisy detected")
                 image = denoise(image)
 
             case "low-light":
-                print("low-light detected")
                 image = brighten(image)
 
             case "haze":
-                print("haze detected")
                 image = dehaze(image)
 
             case "rain":
-                print("rain detected")
                 image = derain(image)
 
             case _:

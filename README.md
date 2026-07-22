@@ -1,14 +1,8 @@
 # ECE4512 Group 8 Final Project
 
-Our project presents an adaptive image restoration pipeline for robust license plate recognition under adverse imaging conditions commonly encountered in traffic surveillance systems. While Automatic License Plate Recognition (ALPR) tools perform well on high-quality images, their performance degrades significantly in real-world scenarios where input images are captured under uncontrolled environmental conditions.
-
-To address these limitations, we created a unified pipeline that combines degradation-aware image restoration with license plate detection and optical character recognition (OCR).
-
----
-
 ## Instructions
 
-#### Prerequisites
+### Prerequisites
 - **Python 3.13.0** – we recommend using [pyenv](https://github.com/pyenv/pyenv) to manage your Python version:
   ```shell
   pyenv install 3.13.0
@@ -16,7 +10,7 @@ To address these limitations, we created a unified pipeline that combines degrad
   ```
 - **Git** (to clone the repository)
 
-#### Setup
+### Setup
 
 1. **Clone the repository**
    ```shell
@@ -34,70 +28,51 @@ To address these limitations, we created a unified pipeline that combines degrad
    ```shell
    pip install -r requirements.txt
    ```
+   On Windows, you may need:
+   ```shell
+   pip install -r requirements-win.txt
+   pip install torch==2.12.1+cu130 torchvision==0.27.1+cu130 --index-url https://download.pytorch.org/whl/cu130
+   ```
 
-4. **Download the degradation‑classification model**  
-   The pipeline requires the pre‑trained DACLIP model (~1.7 GB).  
-   - Download [`daclip_ViT-B-32.pt`](https://huggingface.co/spaces/fffiloni/DA-CLIP/tree/main/pretrained_daclip_uir)  
-   - Place it inside the `source/models/` folder
+4. **Download the pre‑trained models**
 
-5. **Prepare your input images**  
-   - Create the folder `assets/input_images/` (it is not provided by default):
-     ```shell
-     mkdir -p assets/input_images
-     ```
-   - Place all the images you want to process inside this folder.  
-     Supported formats: `.jpg`, `.jpeg`, `.png`, `.bmp`, `.tiff`, `.tif`, `.webp`.
+   The following models are required:
 
-#### Run the pipeline
+   | Model | Source | Size | Location |
+   |-------|--------|------|----------|
+   | **DA‑CLIP** (degradation classifier) | [DA‑CLIP on Hugging Face](https://huggingface.co/spaces/fffiloni/DA-CLIP/tree/main/pretrained_daclip_uir) | ~1.7 GB | `source/models/daclip_ViT-B-32.pt` |
+   | **License Plate Detector** (YOLOv11) | [morsetechlab on Hugging Face](https://huggingface.co/morsetechlab/yolov11-license-plate-detection/tree/main) | Included in repo | `source/models/license-plate-finetune-v1n.pt` |
 
-From the project root directory, execute:
+   > **Important:** The license plate detector model is already included in the repository. Only the DA‑CLIP model needs to be downloaded manually.
 
-**1. Automated pipeline (default)** – uses the CLIP-based classifier to detect degradations:
-```shell
-python source/main.py
-```
+5. **Prepare your test images**
 
-**2. Demo mode** – processes all images inside `assets/demo/` instead of `assets/input_images/`:
-```shell
-python source/main.py demo
-```
+   - **For evaluation:** The `assets/eval/` folder is provided and contains pre-organised test images for each degradation condition. No additional setup is required.
+   - **For single-image processing (optional):** If you wish to run the full pipeline on your own images, create the folder `assets/input_images/` and place your images inside. Supported formats: `.jpg`, `.jpeg`, `.png`, `.bmp`, `.tiff`, `.tif`, `.webp`.
 
-**3. Manual degradation override** – skips the classifier and forces specific restoration techniques. Useful for testing individual degradations:
-```shell
-python source/main.py --haze --rain
-```
-**4. Country-specific OCR corrections** – To improve reading accuracy for plates from specific countries (currently only supports Brazil and China), add the --BR or --CN flag. These will apply corrections for alphanumerics that look similar such as 0 and O, 1 and I, etc.
-```shell
-python source/main.py --CN --haze
-```
+---
 
-You can combine any number of the available flags. The pipeline will apply all listed degradations to every image in the input directory.
+### Run the evaluation (Recommended)
 
-**Available flags:**
-- `--haze`
-- `--rain`
-- `--motion-blur`
-- `--low-light`
-- `--noisy`
+To benchmark the pipeline's performance across baseline, automated, and assisted experiments:
 
-> **Example:** `python source/main.py --haze --motion-blur --low-light`
-
-#### Run the evaluation
-
-To benchmark the pipeline's performance across baseline, automated, and manual experiments:
-
-**1. Run the evaluation** – place desired benchmark images in `assets/test_set/` and run:
 ```shell
 python source/evaluate.py
 ```
 
-The evaluation runs:
-- **Baseline** – no restoration applied
-- **Automated** – DACLIP classifier + restoration
-- **Manual** – ground-truth degradations from filename + restoration
+**Optional country-specific OCR corrections:**
+```shell
+python source/evaluate.py --CN    # China corrections (0↔O, 1↔I)
+python source/evaluate.py --BR    # Brazil corrections (LLL-NNNN format)
+```
 
-**Test set naming convention:**
-Images must follow the format: `degradation1_degradation2_<GROUND_TRUTH>.jpg`
+The evaluation runs three experiments per image:
+- **Baseline** – no restoration applied
+- **Assisted** – ground‑truth degradations parsed from the filename + restoration
+- **Automated** – DACLIP classifier + restoration
+
+**Test set naming convention:**  
+Images must follow the format: `<degradation1>_<degradation2>_<GROUND_TRUTH>.jpg`
 
 Examples:
 - `haze_AED-632.jpg`
@@ -106,38 +81,94 @@ Examples:
 
 Available degradation tokens: `haze`, `rain`, `motionblur`, `lowlight`, `noisy`
 
-**Output:**
-The evaluation prints a summary table showing full-plate and character-level accuracy for each experiment.
+**Output:**  
+Results are saved to `assets/evaluation_output/`, including:
+- Processed plate crops for each experiment
+- Detailed per-image results in a `.txt` file
+- Summary statistics showing full-plate and character-level accuracy
 
+Example summary:
 ```
 ======================================================================
 EVALUATION SUMMARY
 ======================================================================
 
-BASELINE (50 images):
-  Full-plate accuracy: 0.420 (21/50)
-  Character accuracy: 0.651
+BASELINE (44 images):
+  Full-plate accuracy: 0.205 (9/44)
+  Character accuracy: 0.381
 
-AUTOMATED (50 images):
-  Full-plate accuracy: 0.680 (34/50)
-  Character accuracy: 0.824
+ASSISTED (44 images):
+  Full-plate accuracy: 0.273 (12/44)
+  Character accuracy: 0.586
 
-MANUAL (50 images):
-  Full-plate accuracy: 0.920 (46/50)
-  Character accuracy: 0.967
+AUTOMATED (44 images):
+  Full-plate accuracy: 0.318 (14/44)
+  Character accuracy: 0.549
+
+----------------------------------------------------------------------
+CLASSIFIER EVALUATION (Automated mode only)
+  Average Label Accuracy: 0.333
+  Average Jaccard Index (IoU): 0.333
+  (based on 44 images)
+
+----------------------------------------------------------------------
+OVERALL (All modes):
+  Full-plate accuracy: 0.265 (35/132)
+  Character accuracy: 0.505
 ======================================================================
 ```
 
-#### Output
+---
 
-- **OCR results** – recognised plate numbers and their confidence scores are printed directly to the terminal.
-- **Cropped plate images** – each detected plate is saved as a separate `.jpg` file inside `assets/output_images/` with a filename like `<original_name>_plate_<id>.jpg`.
+### Run the full pipeline (Optional)
 
-> **Note:** The `assets/output_images/` folder is created automatically if it does not exist, and its contents are cleared before every new run.
+To process images through the complete restoration and recognition pipeline:
 
-## Installation
-- [daclip_ViT-B-32.pt](https://huggingface.co/spaces/fffiloni/DA-CLIP/tree/main/pretrained_daclip_uir)
+```shell
+python source/main.py
+```
 
-## Credits
-This project utilizes the following ...
-- [daclip-uir](https://github.com/Algolzw/daclip-uir) for image degradation type recognition
+#### 1. Automated pipeline – uses the CLIP‑based classifier to detect degradations:
+```shell
+python source/main.py
+```
+
+#### 2. Assisted degradation override – forces specific restoration techniques (useful for testing):
+```shell
+python source/main.py --haze --rain
+```
+
+#### 3. Country‑specific OCR corrections:
+```shell
+python source/main.py --CN --haze
+```
+
+**Available flags:**
+- `--haze`
+- `--rain`
+- `--motion-blur`
+- `--low-light`
+- `--noisy`
+- `--CN` (China corrections)
+- `--BR` (Brazil corrections)
+
+**Output:**
+- OCR results printed to terminal
+- Cropped plate images saved to `assets/output_images/`
+
+---
+
+## Acknowledgements & Credits
+
+This project builds upon several open‑source libraries and pre‑trained models. We gratefully acknowledge the contributions of:
+
+- **[DA‑CLIP](https://github.com/Algolzw/daclip-uir)** – for degradation classification.  
+  *Reference: Luo, Z., et al. "DA‑CLIP: Towards Degradation‑Aware CLIP for Universal Image Restoration."*
+
+- **[YOLOv11 License Plate Detection](https://huggingface.co/morsetechlab/yolov11-license-plate-detection)** – pre-trained model by morsetechlab for robust plate localisation.
+
+- **[Rodosol ALPR Dataset](https://github.com/raysonlaroca/rodosol-alpr-dataset)** – Brazilian license plate dataset used for evaluation of the `--BR` country corrections.
+
+- **[PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR)** – for optical character recognition.
+
+- **[OpenCLIP](https://github.com/mlfoundations/open_clip)** – for the CLIP model implementation.
